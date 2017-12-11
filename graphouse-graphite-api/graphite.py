@@ -4,6 +4,7 @@ import traceback
 import requests
 
 from six.moves.urllib import parse
+from six.moves import xrange
 from structlog import get_logger
 
 from graphite_api.intervals import IntervalSet, Interval
@@ -11,31 +12,33 @@ from graphite_api.node import LeafNode, BranchNode
 
 log = get_logger()
 
-def load_data(paths, start_time, end_time, graphouse_url, reqkey='empty'):
-    profilingTime = {'start': time.time()}
-
+def graphouse_request(paths, start_time, end_time, graphouse_url):
     try:
         query = parse.urlencode(
-            {
-                'metrics': ','.join([path.replace('\'', '\\\'') for path in paths]),
-                'start': start_time,
-                'end': end_time,
-                'reqKey': reqkey
-            })
+                    {
+                        'metrics': ','.join([path.replace('\'', '\\\'') for path in paths]),
+                        'start': start_time,
+                        'end': end_time,
+                        'reqKey': 'empty'
+                    })
         request_url = graphouse_url + "/metricData"
-        request = requests.post(request_url, params=query)
+        response = requests.post(request_url, params=query)
 
         log.debug('graphouse_data_query: %s parameters %s' % (request_url, query))
 
-        request.raise_for_status()
+        response.raise_for_status()
+        return json.loads(response.text)
     except Exception as e:
         log.error("Failed to fetch data, got exception:\n %s" % traceback.format_exc())
         raise e
 
-    profilingTime['fetch'] = time.time()
+def load_data(paths, start_time, end_time, graphouse_url, reqkey='empty'):
 
-    metrics_data = json.loads(request.text)
-    profilingTime['parse'] = time.time()
+    # Loading too many metrics at once can overflow http request headers so batch them in batches
+    metrics_data = {}
+    batch_size = 100
+    for batch in (paths[pos:pos + batch_size] for pos in xrange(0, len(paths), batch_size)):
+        metrics_data.update(graphouse_request(batch, start_time, end_time, graphouse_url))
 
     time_info = None
     series = {}
@@ -52,16 +55,6 @@ def load_data(paths, start_time, end_time, graphouse_url, reqkey='empty'):
                 time_info = (metric_object.get("start"), metric_object.get("end"), metric_object.get("step"))
 
             series[path] = metric_object.get("points", [])
-
-    profilingTime['convert'] = time.time()
-
-    log.debug('graphouse_time:[%s] full = %s fetch = %s, parse = %s, convert = %s' % (
-        reqkey,
-        profilingTime['convert'] - profilingTime['start'],
-        profilingTime['fetch'] - profilingTime['start'],
-        profilingTime['parse'] - profilingTime['fetch'],
-        profilingTime['convert'] - profilingTime['parse']
-    ))
 
     if time_info is None:
         time_info = (0, 0, 1)

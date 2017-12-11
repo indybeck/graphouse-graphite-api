@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 setup(
     name='graphouse-graphite-api',
@@ -8,6 +8,7 @@ setup(
     author='Mark Bell',
     author_email='mark@swoop.com',
     description='Graphouse storage adaptor for graphite-api',
+    packages=find_packages('.'),
     zip_safe=False,
     install_requires=[
         'requests',
