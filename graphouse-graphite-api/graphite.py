@@ -36,7 +36,7 @@ def load_data(paths, start_time, end_time, graphouse_url, reqkey='empty'):
 
     # Loading too many metrics at once can overflow http request headers so batch them in batches
     metrics_data = {}
-    batch_size = 100
+    batch_size = 75
     for batch in (paths[pos:pos + batch_size] for pos in xrange(0, len(paths), batch_size)):
         metrics_data.update(graphouse_request(batch, start_time, end_time, graphouse_url))
 

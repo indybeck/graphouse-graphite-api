@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='graphouse-graphite-api',
-    version='0.1.0',
+    version='0.1.1',
     url='https://github.com/swoop-inc/graphouse-graphite-api',
     license='MIT',
     author='Mark Bell',
